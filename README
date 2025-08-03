@@ -8,7 +8,7 @@ https://arxiv.org/pdf/1709.08243.pdf
 
 An interactive demo of version 0.1 is available at: https://jmvalin.ca/demo/rnnoise/
 
-To compile, just type:
+To compile on Unix, just type:
 % ./autogen.sh
 % ./configure
 % make
@@ -21,6 +21,13 @@ with AVX2 support or to add --enable-x86-rtcd to the configure script
 so that AVX2 (or SSE4.1) can at least be used as an option.
 Note that the autogen.sh script will automatically download the model files
 from the Xiph.Org servers, since those are too large to put in Git.
+
+To compile on Windows, just type:
+% ./download_model.bat
+% ./build_windows.bat
+
+For a shared library, add the /shared argument:
+% ./build_windows.bat /shared
 
 While it is meant to be used as a library, a simple command-line tool is
 provided as an example. It operates on RAW 16-bit (machine endian) mono
