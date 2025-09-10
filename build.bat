@@ -26,6 +26,10 @@ setlocal enabledelayedexpansion
 ::                          toolchain file to use for cross-compilation.
 ::                          If the path contains spaces, enclose it in quotes.
 ::
+::  Advanced Options:
+::    /cflags:"<flags>"     Append additional C compiler flags. Useful for
+::                          custom optimizations or warnings.
+::
 ::  Examples:
 ::    :: Build for Windows with SSE4.1 (default)
 ::    build.bat
@@ -42,6 +46,7 @@ set "TOOLCHAIN_FILE="
 set "ENABLE_SSE41=ON"
 set "ENABLE_AVX2=OFF"
 set "ENABLE_FMA=OFF"
+set "EXTRA_COMPILER_FLAGS="
 
 :: --- Parse command line arguments ---
 :arg_loop
@@ -59,6 +64,10 @@ for /f "tokens=1,* delims=:" %%G in ("!CURRENT_ARG!") do (
     )
     if /I "%%G" == "/toolchain" (
         set "TOOLCHAIN_FILE=%%~H"
+        set "ARG_HANDLED=1"
+    )
+    if /I "%%G" == "/cflags" (
+        set "EXTRA_COMPILER_FLAGS=%%~H"
         set "ARG_HANDLED=1"
     )
 )
@@ -90,6 +99,10 @@ goto :arg_loop
 :: --- Configure build based on parsed arguments ---
 set "BUILD_DIR=build_!TARGET_PLATFORM!"
 set "CMAKE_SIMD_ARGS=-DRNNOISE_ENABLE_SSE4_1=!ENABLE_SSE41! -DRNNOISE_ENABLE_AVX2=!ENABLE_AVX2! -DRNNOISE_ENABLE_FMA=!ENABLE_FMA!"
+set "CMAKE_EXTRA_FLAGS_ARG="
+if defined EXTRA_COMPILER_FLAGS (
+    set "CMAKE_EXTRA_FLAGS_ARG=-DCMAKE_C_FLAGS_RELEASE="!EXTRA_COMPILER_FLAGS!""
+)
 
 if /I "!TARGET_PLATFORM!" == "windows" (
     :: This is a standard Windows build
@@ -127,6 +140,7 @@ if /I "!ENABLE_SSE41!" == "ON" set "SIMD_LEVEL=SSE4.1"
 if /I "!ENABLE_AVX2!" == "ON" set "SIMD_LEVEL=AVX2"
 if /I "!ENABLE_AVX2!" == "ON" if /I "!ENABLE_FMA!" == "ON" set "SIMD_LEVEL=AVX2 + FMA"
 echo   SIMD Level: !SIMD_LEVEL!
+if defined EXTRA_COMPILER_FLAGS ( echo   Extra Flags: !EXTRA_COMPILER_FLAGS! )
 echo.
 
 if exist "!BUILD_DIR!" (
@@ -147,7 +161,7 @@ if errorlevel 1 (
 cd "!BUILD_DIR!"
 
 echo --- Configuring project with CMake...
-cmake .. !CMAKE_ARGS! -DBUILD_SHARED_LIBS=!SHARED_LIBS_VALUE! !CMAKE_SIMD_ARGS!
+cmake .. !CMAKE_ARGS! -DBUILD_SHARED_LIBS=!SHARED_LIBS_VALUE! !CMAKE_SIMD_ARGS! !CMAKE_EXTRA_FLAGS_ARG!
 
 if errorlevel 1 (
     echo.
