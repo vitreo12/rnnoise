@@ -152,12 +152,11 @@ if(MSVC)
         endif()
     elseif(RNNOISE_ENABLE_SSE4_1)
         message(STATUS "Enabling SSE4.1 support (for MSVC)")
-        target_compile_options(rnnoise PRIVATE /arch:AVX)
+        target_compile_options(rnnoise PRIVATE /arch:SSE2)
         target_sources(rnnoise PRIVATE 
             ${RNNOISE_SOURCES_SSE4_1}
         )
         target_compile_definitions(rnnoise PRIVATE 
-            __AVX__ 
             __SSE4_1__ 
             __SSE2__ 
             __SSE__
