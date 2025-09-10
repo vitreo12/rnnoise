@@ -1,6 +1,5 @@
 .vscode/
-build/
-build_windows/
+build*/
 models/
 *.tar.gz
 

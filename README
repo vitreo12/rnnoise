@@ -24,10 +24,13 @@ from the Xiph.Org servers, since those are too large to put in Git.
 
 To compile on Windows, just type:
 % ./download_model.bat
-% ./build_windows.bat
+% ./build.bat
 
 For a shared library, add the /shared argument:
-% ./build_windows.bat /shared
+% ./build.bat /shared
+
+To compile for another platform, use the /platform and /toolchain arguments:
+% build.bat /platform:myplatform /toolchain:C:\SDKs\myplatform.cmake
 
 While it is meant to be used as a library, a simple command-line tool is
 provided as an example. It operates on RAW 16-bit (machine endian) mono

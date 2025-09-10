@@ -12,7 +12,7 @@ project(rnnoise VERSION 0.4.1 LANGUAGES C)
 option(BUILD_SHARED_LIBS "Build shared libraries instead of static libraries" OFF)
 option(RNNOISE_ENABLE_ASSERTIONS "Enable assertions in code" OFF)
 option(RNNOISE_ENABLE_DNN_DEBUG_FLOAT "Use floating-point DNN computation" OFF)
-option(RNNOISE_BUILD_EXAMPLES "Build the rnnoise_demo example" ON)
+option(RNNOISE_BUILD_EXAMPLES "Build the rnnoise_demo example" OFF)
 
 # Use GNUInstallDirs for standard installation paths (e.g., lib, lib64)
 include(GNUInstallDirs)
