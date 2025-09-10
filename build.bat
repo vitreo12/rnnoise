@@ -22,7 +22,7 @@ setlocal enabledelayedexpansion
 ::    :: Build for Windows (default platform, static library)
 ::    build.bat
 ::
-::    :: Build for "myplatform" with a simple path
+::    :: Build for "myplatform":
 ::    build.bat /platform:myplatform /toolchain:C:\SDKs\myplatform.cmake
 ::
 :: ============================================================================
