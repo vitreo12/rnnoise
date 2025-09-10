@@ -7,11 +7,19 @@ setlocal enabledelayedexpansion
 ::  Usage:
 ::    build.bat [options...]
 ::
-::  By default, this script builds for Windows x64.
+::  By default, this script builds for Windows x64 with SSE4.1 as the
+::  maximum optimization level for wide compatibility.
 ::
-::  Options:
+::  Build Options:
 ::    /static               (Default) Build static libraries (.lib).
 ::    /shared               Build shared libraries (DLLs).
+::
+::  SIMD Options (for x86/x64 builds):
+::    /avx2                 Enable AVX2 optimizations (implies SSE4.1).
+::    /fma                  Enable FMA and AVX2 optimizations (implies both).
+::    /nosse4.1             Disable all SIMD optimizations for maximum portability.
+::
+::  Platform Options:
 ::    /platform:<name>      Specify a platform name for the build. This sets
 ::                          the build directory to "build_<name>".
 ::    /toolchain:<path>     Required for custom platforms. Specifies the CMake
@@ -19,11 +27,11 @@ setlocal enabledelayedexpansion
 ::                          If the path contains spaces, enclose it in quotes.
 ::
 ::  Examples:
-::    :: Build for Windows (default platform, static library)
+::    :: Build for Windows with SSE4.1 (default)
 ::    build.bat
 ::
-::    :: Build for "myplatform":
-::    build.bat /platform:myplatform /toolchain:C:\SDKs\myplatform.cmake
+::    :: Build with AVX2 and FMA for a modern CPU
+::    build.bat /fma
 ::
 :: ============================================================================
 
@@ -31,6 +39,9 @@ setlocal enabledelayedexpansion
 set "SHARED_LIBS_VALUE=OFF"
 set "TARGET_PLATFORM=windows"
 set "TOOLCHAIN_FILE="
+set "ENABLE_SSE41=ON"
+set "ENABLE_AVX2=OFF"
+set "ENABLE_FMA=OFF"
 
 :: --- Parse command line arguments ---
 :arg_loop
@@ -58,6 +69,15 @@ if not defined ARG_HANDLED (
         set "SHARED_LIBS_VALUE=OFF"
     ) else if /I "%~1" == "/shared" (
         set "SHARED_LIBS_VALUE=ON"
+    ) else if /I "%~1" == "/nosse4.1" (
+        set "ENABLE_SSE41=OFF"
+        set "ENABLE_AVX2=OFF"
+        set "ENABLE_FMA=OFF"
+    ) else if /I "%~1" == "/avx2" (
+        set "ENABLE_AVX2=ON"
+    ) else if /I "%~1" == "/fma" (
+        set "ENABLE_AVX2=ON"
+        set "ENABLE_FMA=ON"
     ) else (
         echo WARNING: Unknown argument "%~1". Ignoring.
     )
@@ -69,6 +89,7 @@ goto :arg_loop
 
 :: --- Configure build based on parsed arguments ---
 set "BUILD_DIR=build_!TARGET_PLATFORM!"
+set "CMAKE_SIMD_ARGS=-DRNNOISE_ENABLE_SSE4_1=!ENABLE_SSE41! -DRNNOISE_ENABLE_AVX2=!ENABLE_AVX2! -DRNNOISE_ENABLE_FMA=!ENABLE_FMA!"
 
 if /I "!TARGET_PLATFORM!" == "windows" (
     :: This is a standard Windows build
@@ -100,6 +121,12 @@ if defined TOOLCHAIN_FILE ( echo   Toolchain: !TOOLCHAIN_FILE! )
 set "BUILD_TYPE_NAME=static"
 if /I "!SHARED_LIBS_VALUE!" == "ON" set "BUILD_TYPE_NAME=shared"
 echo   Build type: !BUILD_TYPE_NAME!
+
+set "SIMD_LEVEL=Generic"
+if /I "!ENABLE_SSE41!" == "ON" set "SIMD_LEVEL=SSE4.1"
+if /I "!ENABLE_AVX2!" == "ON" set "SIMD_LEVEL=AVX2"
+if /I "!ENABLE_AVX2!" == "ON" if /I "!ENABLE_FMA!" == "ON" set "SIMD_LEVEL=AVX2 + FMA"
+echo   SIMD Level: !SIMD_LEVEL!
 echo.
 
 if exist "!BUILD_DIR!" (
@@ -120,7 +147,7 @@ if errorlevel 1 (
 cd "!BUILD_DIR!"
 
 echo --- Configuring project with CMake...
-cmake .. !CMAKE_ARGS! -DBUILD_SHARED_LIBS=!SHARED_LIBS_VALUE!
+cmake .. !CMAKE_ARGS! -DBUILD_SHARED_LIBS=!SHARED_LIBS_VALUE! !CMAKE_SIMD_ARGS!
 
 if errorlevel 1 (
     echo.

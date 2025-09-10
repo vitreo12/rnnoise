@@ -14,6 +14,10 @@ option(RNNOISE_ENABLE_ASSERTIONS "Enable assertions in code" OFF)
 option(RNNOISE_ENABLE_DNN_DEBUG_FLOAT "Use floating-point DNN computation" OFF)
 option(RNNOISE_BUILD_EXAMPLES "Build the rnnoise_demo example" OFF)
 
+option(RNNOISE_ENABLE_SSE4_1 "Enable SSE4.1-optimized code paths" ON)
+option(RNNOISE_ENABLE_AVX2 "Enable AVX2-optimized code paths" OFF)
+option(RNNOISE_ENABLE_FMA "Enable FMA-optimized code paths (requires AVX2)" OFF)
+
 # Use GNUInstallDirs for standard installation paths (e.g., lib, lib64)
 include(GNUInstallDirs)
 
@@ -73,15 +77,12 @@ set(RNNOISE_SOURCES_RTCD
 )
 
 set(RNNOISE_SOURCES_SSE4_1 src/x86/nnet_sse4_1.c)
-
 set(RNNOISE_SOURCES_AVX2   src/x86/nnet_avx2.c)
 
 # Create the library target from all sources
 add_library(rnnoise
     ${RNNOISE_SOURCES_CORE}
     ${RNNOISE_SOURCES_RTCD}
-    ${RNNOISE_SOURCES_SSE4_1}
-    ${RNNOISE_SOURCES_AVX2}
 )
 
 add_library(RNNoise::rnnoise ALIAS rnnoise)
@@ -122,25 +123,71 @@ endif()
 target_compile_definitions(rnnoise PRIVATE CPU_INFO_BY_ASM)
 target_compile_definitions(rnnoise PRIVATE RNN_ENABLE_X86_RTCD)
 
-if(MSVC)
-    # Enable AVX2 instruction set for the whole library.
-    target_compile_options(rnnoise PRIVATE /arch:AVX2)
+# =============================================================================
+# SIMD Optimizations (SSE4.1, AVX2, FMA)
+# =============================================================================
+# Conditionally add sources and flags based on the RNNOISE_ENABLE_* options.
 
-    # Manually define the standard SIMD macros for MSVC.
-    # Unlike GCC, /arch does not automatically define these, so we
-    # must add them ourselves to satisfy the preprocessor checks in the code.
-    target_compile_definitions(rnnoise PRIVATE
-        __SSE__
-        __SSE2__
-        __SSE4_1__
-        __AVX__
-        __AVX2__
-    )
-else()
-    # Enable AVX2 instruction set for the whole library.
-    # For GCC/Clang, this flag both enables the instructions AND automatically
-    # defines the __AVX2__, __SSE4_1__, etc., macros.
-    target_compile_options(rnnoise PRIVATE -mavx -mavx2 -mfma -msse4.1)
+if(MSVC)
+    # For MSVC, we set the highest required architecture level. /arch:AVX2
+    # implies support for AVX and SSE. We must also manually define the
+    # preprocessor macros that GCC/Clang set automatically.
+    if(RNNOISE_ENABLE_AVX2)
+        message(STATUS "Enabling AVX2 support (for MSVC)")
+        target_compile_options(rnnoise PRIVATE /arch:AVX2)
+        target_sources(rnnoise PRIVATE 
+            ${RNNOISE_SOURCES_AVX2} 
+            ${RNNOISE_SOURCES_SSE4_1}
+        )
+        target_compile_definitions(rnnoise PRIVATE 
+            __AVX2__ 
+            __AVX__ 
+            __SSE4_1__ 
+            __SSE2__ 
+            __SSE__
+        )
+        if(RNNOISE_ENABLE_FMA)
+            message(STATUS "Enabling FMA support (for MSVC)")
+            target_compile_definitions(rnnoise PRIVATE __FMA__)
+        endif()
+    elseif(RNNOISE_ENABLE_SSE4_1)
+        message(STATUS "Enabling SSE4.1 support (for MSVC)")
+        target_compile_options(rnnoise PRIVATE /arch:AVX)
+        target_sources(rnnoise PRIVATE 
+            ${RNNOISE_SOURCES_SSE4_1}
+        )
+        target_compile_definitions(rnnoise PRIVATE 
+            __AVX__ 
+            __SSE4_1__ 
+            __SSE2__ 
+            __SSE__
+        )
+    else()
+        message(STATUS "No x86 SIMD extensions enabled.")
+    endif()
+else() # GCC / Clang
+    # For GCC/Clang, we add flags individually. The -m<ext> flags enable
+    # code generation and define the appropriate preprocessor macros.
+    if(RNNOISE_ENABLE_AVX2)
+        message(STATUS "Enabling AVX2 support (for GCC/Clang)")
+        target_compile_options(rnnoise PRIVATE -mavx2 -mavx -msse4.1)
+        target_sources(rnnoise PRIVATE 
+            ${RNNOISE_SOURCES_AVX2} 
+            ${RNNOISE_SOURCES_SSE4_1}
+        )
+        if(RNNOISE_ENABLE_FMA)
+            message(STATUS "Enabling FMA support (for GCC/Clang)")
+            target_compile_options(rnnoise PRIVATE -mfma)
+        endif()
+    elseif(RNNOISE_ENABLE_SSE4_1)
+        message(STATUS "Enabling SSE4.1 support (for GCC/Clang)")
+        target_compile_options(rnnoise PRIVATE -msse4.1)
+        target_sources(rnnoise PRIVATE 
+            ${RNNOISE_SOURCES_SSE4_1}
+        )
+    else()
+        message(STATUS "No x86 SIMD extensions enabled.")
+    endif()
 endif()
 
 # =============================================================================
