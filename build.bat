@@ -29,6 +29,8 @@ setlocal enabledelayedexpansion
 ::  Advanced Options:
 ::    /cflags:"<flags>"     Append additional C compiler flags. Useful for
 ::                          custom optimizations or warnings.
+::    /cmake:<def>          Pass a custom CMake definition directly. Can be used
+::                          multiple times. Example: /cmake:TargetEdition=241000
 ::
 ::  Examples:
 ::    :: Build for Windows with AVX2 (default)
@@ -40,8 +42,8 @@ setlocal enabledelayedexpansion
 ::    :: Build with only SSE4.1 for broader compatibility
 ::    build.bat /noavx2
 ::
-::    :: Build with no SIMD optimizations for maximum compatibility
-::    build.bat /nosse4.1
+::    :: Build a custom platform with a specific edition
+::    build.bat /platform:my_embedded /toolchain:toolchains/my_tc.cmake /cmake:TargetEdition=241000
 ::
 :: ============================================================================
 
@@ -50,6 +52,7 @@ set "SHARED_LIBS_VALUE=OFF"
 set "TARGET_PLATFORM=windows"
 set "TOOLCHAIN_FILE="
 set "EXTRA_COMPILER_FLAGS="
+set "CUSTOM_CMAKE_DEFS="
 
 :: --- Pass 1: Determine Final SIMD State ---
 :: We scan all arguments first to establish the definitive SIMD level.
@@ -108,6 +111,10 @@ for /f "tokens=1,* delims=:" %%G in ("!CURRENT_ARG!") do (
     )
     if /I "%%G" == "/cflags" (
         set "EXTRA_COMPILER_FLAGS=%%~H"
+        set "ARG_HANDLED=1"
+    )
+    if /I "%%G" == "/cmake" (
+        set "CUSTOM_CMAKE_DEFS=!CUSTOM_CMAKE_DEFS! -D%%~H"
         set "ARG_HANDLED=1"
     )
 )
@@ -178,6 +185,7 @@ if /I "!ENABLE_AVX2!" == "ON" set "SIMD_LEVEL=AVX2"
 if /I "!ENABLE_AVX2!" == "ON" if /I "!ENABLE_FMA!" == "ON" set "SIMD_LEVEL=AVX2 + FMA"
 echo   SIMD Level: !SIMD_LEVEL!
 if defined EXTRA_COMPILER_FLAGS ( echo   Extra Flags: !EXTRA_COMPILER_FLAGS! )
+if defined CUSTOM_CMAKE_DEFS ( echo   Custom Defs:!CUSTOM_CMAKE_DEFS! )
 echo.
 
 if exist "!BUILD_DIR!" (
@@ -198,7 +206,7 @@ if errorlevel 1 (
 cd "!BUILD_DIR!"
 
 echo --- Configuring project with CMake...
-cmake .. !CMAKE_ARGS! -DBUILD_SHARED_LIBS=!SHARED_LIBS_VALUE! !CMAKE_SIMD_ARGS! !CMAKE_EXTRA_FLAGS_ARG!
+cmake .. !CMAKE_ARGS! -DBUILD_SHARED_LIBS=!SHARED_LIBS_VALUE! !CMAKE_SIMD_ARGS! !CMAKE_EXTRA_FLAGS_ARG! !CUSTOM_CMAKE_DEFS!
 
 if errorlevel 1 (
     echo.
