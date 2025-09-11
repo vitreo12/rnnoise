@@ -15,7 +15,7 @@ option(RNNOISE_ENABLE_DNN_DEBUG_FLOAT "Use floating-point DNN computation" OFF)
 option(RNNOISE_BUILD_EXAMPLES "Build the rnnoise_demo example" OFF)
 
 option(RNNOISE_ENABLE_SSE4_1 "Enable SSE4.1-optimized code paths" ON)
-option(RNNOISE_ENABLE_AVX2 "Enable AVX2-optimized code paths" OFF)
+option(RNNOISE_ENABLE_AVX2 "Enable AVX2-optimized code paths" ON)
 option(RNNOISE_ENABLE_FMA "Enable FMA-optimized code paths (requires AVX2)" OFF)
 
 # Use GNUInstallDirs for standard installation paths (e.g., lib, lib64)
@@ -135,15 +135,15 @@ if(MSVC)
     if(RNNOISE_ENABLE_AVX2)
         message(STATUS "Enabling AVX2 support (for MSVC)")
         target_compile_options(rnnoise PRIVATE /arch:AVX2)
-        target_sources(rnnoise PRIVATE 
-            ${RNNOISE_SOURCES_AVX2} 
+        target_sources(rnnoise PRIVATE
+            ${RNNOISE_SOURCES_AVX2}
             ${RNNOISE_SOURCES_SSE4_1}
         )
-        target_compile_definitions(rnnoise PRIVATE 
-            __AVX2__ 
-            __AVX__ 
-            __SSE4_1__ 
-            __SSE2__ 
+        target_compile_definitions(rnnoise PRIVATE
+            __AVX2__
+            __AVX__
+            __SSE4_1__
+            __SSE2__
             __SSE__
         )
         if(RNNOISE_ENABLE_FMA)
@@ -153,12 +153,12 @@ if(MSVC)
     elseif(RNNOISE_ENABLE_SSE4_1)
         message(STATUS "Enabling SSE4.1 support (for MSVC)")
         target_compile_options(rnnoise PRIVATE /arch:SSE2)
-        target_sources(rnnoise PRIVATE 
+        target_sources(rnnoise PRIVATE
             ${RNNOISE_SOURCES_SSE4_1}
         )
-        target_compile_definitions(rnnoise PRIVATE 
-            __SSE4_1__ 
-            __SSE2__ 
+        target_compile_definitions(rnnoise PRIVATE
+            __SSE4_1__
+            __SSE2__
             __SSE__
         )
     else()
@@ -170,8 +170,8 @@ else() # GCC / Clang
     if(RNNOISE_ENABLE_AVX2)
         message(STATUS "Enabling AVX2 support (for GCC/Clang)")
         target_compile_options(rnnoise PRIVATE -mavx2 -mavx -msse4.1)
-        target_sources(rnnoise PRIVATE 
-            ${RNNOISE_SOURCES_AVX2} 
+        target_sources(rnnoise PRIVATE
+            ${RNNOISE_SOURCES_AVX2}
             ${RNNOISE_SOURCES_SSE4_1}
         )
         if(RNNOISE_ENABLE_FMA)
@@ -181,7 +181,7 @@ else() # GCC / Clang
     elseif(RNNOISE_ENABLE_SSE4_1)
         message(STATUS "Enabling SSE4.1 support (for GCC/Clang)")
         target_compile_options(rnnoise PRIVATE -msse4.1)
-        target_sources(rnnoise PRIVATE 
+        target_sources(rnnoise PRIVATE
             ${RNNOISE_SOURCES_SSE4_1}
         )
     else()

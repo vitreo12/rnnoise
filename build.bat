@@ -7,17 +7,17 @@ setlocal enabledelayedexpansion
 ::  Usage:
 ::    build.bat [options...]
 ::
-::  By default, this script builds for Windows x64 with SSE4.1 as the
-::  maximum optimization level for wide compatibility.
+::  By default, this script builds for Windows x64 with AVX2 as the
+::  maximum optimization level for modern CPUs.
 ::
 ::  Build Options:
 ::    /static               (Default) Build static libraries (.lib).
 ::    /shared               Build shared libraries (DLLs).
 ::
 ::  SIMD Options (for x86/x64 builds):
-::    /avx2                 Enable AVX2 optimizations (implies SSE4.1).
-::    /fma                  Enable FMA and AVX2 optimizations (implies both).
-::    /nosse4.1             Disable all SIMD optimizations for maximum portability.
+::    /fma                  Enable FMA, which also enables AVX2 and SSE4.1.
+::    /noavx2               Disable AVX2 and FMA, building with SSE4.1 only.
+::    /nosse4.1             Disable all SIMD (SSE4.1, AVX2, FMA) for max compatibility.
 ::
 ::  Platform Options:
 ::    /platform:<name>      Specify a platform name for the build. This sets
@@ -31,11 +31,17 @@ setlocal enabledelayedexpansion
 ::                          custom optimizations or warnings.
 ::
 ::  Examples:
-::    :: Build for Windows with SSE4.1 (default)
+::    :: Build for Windows with AVX2 (default)
 ::    build.bat
 ::
-::    :: Build with AVX2 and FMA for a modern CPU
+::    :: Build with AVX2 and FMA for the most modern CPUs
 ::    build.bat /fma
+::
+::    :: Build with only SSE4.1 for broader compatibility
+::    build.bat /noavx2
+::
+::    :: Build with no SIMD optimizations for maximum compatibility
+::    build.bat /nosse4.1
 ::
 :: ============================================================================
 
@@ -43,20 +49,54 @@ setlocal enabledelayedexpansion
 set "SHARED_LIBS_VALUE=OFF"
 set "TARGET_PLATFORM=windows"
 set "TOOLCHAIN_FILE="
-set "ENABLE_SSE41=ON"
-set "ENABLE_AVX2=OFF"
-set "ENABLE_FMA=OFF"
 set "EXTRA_COMPILER_FLAGS="
 
-:: --- Parse command line arguments ---
+:: --- Pass 1: Determine Final SIMD State ---
+:: We scan all arguments first to establish the definitive SIMD level.
+:: This follows a strict hierarchy where more restrictive flags override less restrictive ones,
+:: regardless of their order on the command line (e.g., /noavx2 will always beat /fma).
+set "ALL_ARGS=%*"
+
+:: Default state is AVX2 ON, FMA OFF
+set "ENABLE_SSE41=ON"
+set "ENABLE_AVX2=ON"
+set "ENABLE_FMA=OFF"
+
+echo "!ALL_ARGS!" | find /I "/nosse4.1" > nul
+if errorlevel 1 (
+    rem /nosse4.1 not found, check next level
+    echo "!ALL_ARGS!" | find /I "/noavx2" > nul
+    if errorlevel 1 (
+        rem /noavx2 not found, check for fma
+        echo "!ALL_ARGS!" | find /I "/fma" > nul
+        if not errorlevel 1 (
+            rem /fma was found, set state to AVX2+FMA
+            set "ENABLE_SSE41=ON"
+            set "ENABLE_AVX2=ON"
+            set "ENABLE_FMA=ON"
+        )
+    ) else (
+        rem /noavx2 was found, set state to SSE4.1 only
+        set "ENABLE_SSE41=ON"
+        set "ENABLE_AVX2=OFF"
+        set "ENABLE_FMA=OFF"
+    )
+) else (
+    rem /nosse4.1 was found, disable all SIMD
+    set "ENABLE_SSE41=OFF"
+    set "ENABLE_AVX2=OFF"
+    set "ENABLE_FMA=OFF"
+)
+
+
+:: --- Pass 2: Parse All Arguments Robustly ---
 :arg_loop
 if "%~1"=="" goto :arg_loop_end
 
 set "ARG_HANDLED="
 set "CURRENT_ARG=%~1"
 
-:: Use a FOR loop to robustly parse key:value arguments like /toolchain:<path>
-:: This correctly handles quotes around the value part.
+:: Use a FOR loop to robustly parse key:value arguments like /toolchain:"<path>"
 for /f "tokens=1,* delims=:" %%G in ("!CURRENT_ARG!") do (
     if /I "%%G" == "/platform" (
         set "TARGET_PLATFORM=%%~H"
@@ -79,14 +119,11 @@ if not defined ARG_HANDLED (
     ) else if /I "%~1" == "/shared" (
         set "SHARED_LIBS_VALUE=ON"
     ) else if /I "%~1" == "/nosse4.1" (
-        set "ENABLE_SSE41=OFF"
-        set "ENABLE_AVX2=OFF"
-        set "ENABLE_FMA=OFF"
-    ) else if /I "%~1" == "/avx2" (
-        set "ENABLE_AVX2=ON"
+        rem Handled in Pass 1, do nothing here
+    ) else if /I "%~1" == "/noavx2" (
+        rem Handled in Pass 1, do nothing here
     ) else if /I "%~1" == "/fma" (
-        set "ENABLE_AVX2=ON"
-        set "ENABLE_FMA=ON"
+        rem Handled in Pass 1, do nothing here
     ) else (
         echo WARNING: Unknown argument "%~1". Ignoring.
     )
