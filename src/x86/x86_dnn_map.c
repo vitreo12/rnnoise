@@ -41,16 +41,8 @@ void (*const RNN_COMPUTE_LINEAR_IMPL[OPUS_ARCHMASK + 1])(
          const float *in
 ) = {
   compute_linear_c,                /* non-sse */
-#if defined(__SSE4_1__)
   MAY_HAVE_SSE4_1(compute_linear), /* sse4.1  */
-#else
-  compute_linear_c,
-#endif
-#if defined(__AVX2__)
-  MAY_HAVE_AVX2(compute_linear)  /* avx2  */
-#else
-  compute_linear_c,
-#endif
+  MAY_HAVE_AVX2(compute_linear)  /* avx  */
 };
 
 void (*const RNN_COMPUTE_ACTIVATION_IMPL[OPUS_ARCHMASK + 1])(
@@ -60,16 +52,8 @@ void (*const RNN_COMPUTE_ACTIVATION_IMPL[OPUS_ARCHMASK + 1])(
          int activation
 ) = {
   compute_activation_c,                /* non-sse */
-#if defined(__SSE4_1__)
   MAY_HAVE_SSE4_1(compute_activation), /* sse4.1  */
-#else
-  compute_activation_c,
-#endif
-#if defined(__AVX2__)
-  MAY_HAVE_AVX2(compute_activation)  /* avx2  */
-#else
-  compute_activation_c,
-#endif
+  MAY_HAVE_AVX2(compute_activation)  /* avx  */
 };
 
 void (*const RNN_COMPUTE_CONV2D_IMPL[OPUS_ARCHMASK + 1])(
@@ -82,16 +66,8 @@ void (*const RNN_COMPUTE_CONV2D_IMPL[OPUS_ARCHMASK + 1])(
          int activation
 ) = {
   compute_conv2d_c,                /* non-sse */
-#if defined(__SSE4_1__)
   MAY_HAVE_SSE4_1(compute_conv2d), /* sse4.1  */
-#else
-  compute_conv2d_c,
-#endif
-#if defined(__AVX2__)
-  MAY_HAVE_AVX2(compute_conv2d)  /* avx2  */
-#else
-  compute_conv2d_c,
-#endif
+  MAY_HAVE_AVX2(compute_conv2d)  /* avx  */
 };
 
 
